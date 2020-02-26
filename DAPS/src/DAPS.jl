@@ -8,7 +8,34 @@ end
 
 # Randomly-exploring Random Tree
 function RRT(s,g,O)
+    
+    const Vec4f = SVector{4, Float64}
 
+    # read the starting point from the input
+    start_point = Vec4f(s)
+    # read the goal from the input
+    goal_point = Vec4f(g)
+
+    # add the floor as an obstacle, infinite radius circle at origin
+    floor = [0 0 0 Base.Inf 0]
+    # adding the floor to the obstacle matrix
+    O = [O;floor]
+
+    # Read the total number of obstacles from the input + floor
+    O_number_rows = size(O)[1]
+    
+    # Draw obstacles
+    for i = 1:1:O_number_rows # iterate through all obstacle inputs
+        if O[i,5] = 1 # check if the obstacle is a cylinder
+            function cylinder # draw cylinder obstacle using coordinates and height
+              
+            end # end cylinder function
+        else # if not a cylinder, use sphere
+            function sphere # draw sphere obstacle with coordinates and radius
+            
+            end # end sphere function
+        end
+    end 
 end
 
 #
