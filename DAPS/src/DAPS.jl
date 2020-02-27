@@ -6,11 +6,9 @@ module DAPS
 using StaticArrays
 #I just took the first letter of each of our names
 const maxN = 1000
-const radCluster = 10
-    
-# frame are assumed to be 3x1 vectors [x; y; z]
+const radCluster = 9
 
-function norm3(f,S)
+function dist(f,S)
     return ((f[1]-S[1])^2+(f[2]-S[2])^2+(f[3]-S[3])^2)^.5
 end
 
@@ -29,7 +27,7 @@ function checkFrame(f,O)
             end
         else
             # Check if it is outside sphere space
-            if O[i,4] + 1 < norm3(f,O[i]) 
+            if O[i,4] + 1 < dist(f,O[i]) 
                 return false
             end
         end
@@ -77,8 +75,22 @@ end
 
 # given a graph with edges, find the path from start to finish (DFS or BFS)
 function findpath(nodes, edges)
-    order = [2,]
-    while ()
+    order = [1,]
+    index = 2
+    # create an n by n matrix
+    paths = zeros{Float64,size(nodes,1),size(nodes,1)}
+    # iterate through one edge of the matrix
+    for i = 1:size(nodes,1)
+        # iterate only a triangle of the matrix
+        for j = 1:i
+            for k = 1:size(edges,1)
+                if edges[k,1] = i
+                    paths[i,edges[k,2]] = paths[edges[k,2],i] = edges[k,3]
+                end
+            end
+        end
+    end
+    while (index != 1)
         
     end
 end
@@ -88,10 +100,11 @@ function PRM(s,g,O)
     const Vec3f = SVector{3, Float64}
     # read the starting point from the input
     start_point = Vec3f(s[1:3,4])
-    # read the goal from the input
+    # read the goal from the input nodes[i1]
     goal_point = Vec3f(g[1:3,4])
     nodes = cat(goal_point, start_point; dims=2) # stack horizontally because they are naturally vertical
     numNodes = 2
+    # row of edges is [index1 index2 distanceBetweeni1i2]
     edges = []
     while (numNodes < maxN)
         # don't allow the finish to grow a node
@@ -105,15 +118,14 @@ function PRM(s,g,O)
             numNodes += 1
             for i = 1:size(nodes,3)
                 # if this is within an acceptable radius, then add the node
-                if norm3([newPoint[1,4] newPoint[2,4] newPoint[3,4]],[nodes[i][1,4] nodes[i][2,4] nodes[i][3,4]]) < radCluster
+                if dist(newPoint,nodes[:,i]) < radCluster
                     if checkEdge(newPoint,nodes[:,i],O)
-                        edges = [edges; numNodes+1 i]
+                        edges = [edges; numNodes i dist(newPoint,nodes[:,i])]
                         if i == 1
                             path = findpath(nodes, edges)
                         end
                     end
                 end
-                # create a check for edges (idk how to very robustly)
             end
         end
     end
@@ -123,13 +135,6 @@ end
 function RRT(s,g,O)
 
 
-end
-
-# Fairly straight forward; dot product and sqrt it
-function dist(f1,f2)
-    p1 = f1[1:3,4]
-    p2 = hcat(f2[1:3,4])
-    return ((p2*p1)[1])^.5
 end
 
 # I think we could just do total distance here
