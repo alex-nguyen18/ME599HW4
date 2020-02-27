@@ -32,18 +32,47 @@ function checkFrame(f,O)
             end
         end
     end
-    return true
+    return true #if no collisions, then true
+end
+
+# Homogenous Trans. Matrix of X-Y-Z euler rotation
+function eulerRotationMatrix(theta1,theta2,theta3)
+	Rx = [1 0 0 0; 0 cos(theta1) -sin(theta1) 0; 0 sin(theta1) cos(theta1) 0; 0 0 0 1]
+	Ry = [cos(theta2) 0 sin(theta2) 0; 0 1 0 0; -sin(theta2) 0 cos(theta2) 0; 0 0 0 1]
+	Rz = [cos(theta3) -sin(theta3) 0 0; sin(theta3) cos(theta3) 0 0; 0 0 1 0; 0 0 0 1]
+	return Rx*Ry*Rz
 end
 
 # Add a new random point/configuration
 # Consider expanding off of a current point within a certain radius?
-function addPoint()
-
+function addPoint(p)
+    r = rand(collect(1:radCluster))
+    trans = p + [0 0 0 0; 0 0 0 0; 0 0 0 r; 0 0 0 0]
+    rAng = rand(3)
+    rRot = eulerRotationMatrix(rAng[1],rAng[2],rAng[3])
+    return trans*rRot
 end
 
-# check if edge is realistic
+function getPos(f)
+    return [0 0 0 f[1,4]; 0 0 0 f[2,4]; 0 0 0 f[3,4]; 0 0 0 0]
+end
+# check if edge is realistic (I was thinking 10% increments)
 function checkEdge(f1,f2,O)
+    v = getPos(f2) - getPos(f1)
+    for i = 1:10
+        p = f1 + (i/10)(v)
+        if !checkFrame(p,O)
+            return false
+    end
+    return true
+end
 
+# given a graph with edges, find the path from start to finish (DFS or BFS)
+function findpath(nodes, edges)
+    order = [2,]
+    while ()
+        
+    end
 end
 
 # Prob. Road Map
@@ -57,22 +86,27 @@ function PRM(s,g,O)
     numNodes = 2
     edges = []
     while (numNodes < maxN)
+        index = rand(collect(1:numNodes))
         # add a new frame
-        newPoint = addPoint()
+        newPoint = addPoint(nodes[:,:,index])
         # check if new point is in
         if checkFrame(newPoint,O)
             # add node position if it passes
             nodes = cat(nodes,newPoint; dims=3)
+            numNodes += 1
             for i = 1:size(nodes,3)
+                # if this is within an acceptable radius, then add the node
                 if norm3([newPoint[1,4] newPoint[2,4] newPoint[3,4]],[nodes[i][1,4] nodes[i][2,4] nodes[i][3,4]]) < radCluster
                     if checkEdge(newPoint,O[:,:,i],O)
                         edges = [edges; numNodes+1 i]
+                        if i == 2
+                            path = findpath(nodes, edges)
+                        end
                     end
                 end
                 # create a check for edges (idk how to very robustly)
             end
         end
-        numNodes += 1
     end
 end
 
