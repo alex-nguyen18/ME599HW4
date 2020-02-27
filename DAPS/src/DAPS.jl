@@ -1,58 +1,84 @@
 module DAPS
+
+# I am thinking that this may be a good implementation to aim for
+# https://www.cs.princeton.edu/courses/archive/fall11/cos495/COS495-Lab8-MotionPlanning.pdf
+
+using StaticArrays
 #I just took the first letter of each of our names
+const maxN = 1000
+const radCluster = 10
+    
+function norm3(f,S)
+    return ((f[1]-S[1])^2+(f[2]-S[2])^2+(f[3]-S[3])^2)^.5
+end
+
+function norm2(f,C)
+    return ((f[1]-C[1])^2+(f[2]-C[2])^2)
+end
+
+function checkFrame(f,O)
+    if f[3,4] < 0
+    for i = 1:size(O,1) 
+        # Check if cylinder or sphere
+        if O[i][5] == 1
+            # Check if it is outside of cylinder space (Over estimate the cylinder)
+            if (f[3][4] < O[i][3] + 1 && O[i][4] + 1 < norm2([f[1,4] f[2,4]],O[i]))
+                return false
+            end
+        else
+            # Check if it is outside sphere space
+            if O[i][4] + 1 < norm3([f[1,4] f[2,4] f[3,4]],O[i]) 
+                return false
+            end
+        end
+    end
+    return true
+end
+
+# Add a new random point/configuration
+# Consider expanding off of a current point within a certain radius?
+function addPoint()
+
+end
+
+# check if edge is realistic
+function checkEdge(f1,f2,O)
+
+end
 
 # Prob. Road Map
 function PRM(s,g,O)
-
+    const Vec3f = SVector{3, Float64}
+    # read the starting point from the input
+    start_point = Vec3f(s[1:3,4])
+    # read the goal from the input
+    goal_point = Vec3f(g[1:3,4])
+    nodes = cat(start_point,goal_point; dims=3) # stack horizontally because they are naturally vertical
+    numNodes = 2
+    edges = []
+    while (numNodes < maxN)
+        # add a new frame
+        newPoint = addPoint()
+        # check if new point is in
+        if checkFrame(newPoint,O)
+            # add node position if it passes
+            nodes = cat(nodes,newPoint; dims=3)
+            for i = 1:size(nodes,3)
+                if norm3([newPoint[1,4] newPoint[2,4] newPoint[3,4]],[nodes[i][1,4] nodes[i][2,4] nodes[i][3,4]]) < radCluster
+                    if checkEdge(newPoint,O[:,:,i],O)
+                        edges = [edges; numNodes+1 i]
+                    end
+                end
+                # create a check for edges (idk how to very robustly)
+            end
+        end
+        numNodes += 1
+    end
 end
 
 # Randomly-exploring Random Tree
 function RRT(s,g,O)
-    
-    const Vec4f = SVector{4, Float64}
 
-    # read the starting point from the input
-    start_point = Vec4f(s)
-    # read the goal from the input
-    goal_point = Vec4f(g)
-
-    # add the floor as an obstacle, infinite radius circle at origin
-    floor = [0 0 0 Base.Inf 0]
-    # adding the floor to the obstacle matrix
-    O = [O;floor]
-
-    # Read the total number of obstacles from the input + floor
-    O_number_rows = size(O)[1]
-    
-    # Draw obstacles
-    for i = 1:1:O_number_rows # iterate through all obstacle inputs
-        if O[i,5] = 1 # check if the obstacle is a cylinder
-              x_coordinate = O[i,1] # read the x coordinate of cylinder position
-              y_coordinate = O[i,2] # read the y coordinate of cylinder position
-              height_cylinder = O[i,3] # read the height of the cylinder
-              radius_cylinder = O[i,4] # read the radius of the cylinder
-            function cylinder # draw cylinder obstacle using coordinates and height
-              # creates the geometry of the cylinder through 2 circles at varius heights and a common radius
-                geom = Cylinder([x_coordinate; y_coordinate; z_coordinate], radius_cylinder, height_cylinder)
-            end # end cylinder function
-        else # if not a cylinder, use sphere
-              x_coordinate = O[i,1] # read the x coordinate of sphere position
-              y_coordinate = O[i,2] # read the y coordinate of sphere position
-              z_coordinate = O[i,3] # read the z coordinate of sphere position
-              radius_sphere = O[i,4] # read the radius of the sphere
-            function sphere # draw sphere obstacle with coordinates and radius
-            # creates the geometry of the sphere through origin and radius
-                geom = Sphere([x_coordinate; y_coordinate; z_coordinate],radius_sphere)
-            end # end sphere function
-            
-        end
-        
-    end 
-    
-end
-
-#
-function addPoints()
 
 end
 
