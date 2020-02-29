@@ -3,7 +3,7 @@ module DAPS
 # I am thinking that this may be a good implementation to aim for
 # https://www.cs.princeton.edu/courses/archive/fall11/cos495/COS495-Lab8-MotionPlanning.pdf
 
-using StaticArrays
+import StaticArrays
 #I just took the first letter of each of our names
 const maxN = 1000
 const radCluster = 9
@@ -70,6 +70,7 @@ function checkEdge(f1,f2,O)
         p = f1 + (i/10)(v)
         if !checkFrame(p,O)
             return false
+        end
     end
     return true
 end
@@ -129,7 +130,7 @@ end
 
 # Prob. Road Map
 function PRM(s,g,O)
-    const Vec3f = SVector{3, Float64}
+    Vec3f = SVector{3, Float64}
     # read the starting point from the input
     start_point = Vec3f(s[1:3,4])
     # read the goal from the input nodes[i1]
