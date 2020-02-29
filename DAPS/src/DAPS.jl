@@ -73,12 +73,42 @@ function checkEdge(f1,f2,O)
     return true
 end
 
-# given a graph with edges, find the path from start to finish (DFS or BFS)
+# given a graph with edges, find the path from start to finish (Dijkstra)
 function findpath(nodes, edges)
-    order = [1,]
-    index = 2
+    #rder = [1,]
+    #index = 2
+    #not sure if we need this line below
+    #check = BitArray(undef,size(nodes,1))
+    nodeorder=(size(nodes,1))
+    prev = ones(Int,size(nodes,1))
+    weights = fill(Inf,size(nodes,1))
+    weights[1] = 0
+    #iterate through all nodes
+    for i = 1:size(nodes,1)
+        #it is assumed that the newer nodes are lower on the list
+        for j = 1:size(edges,1)
+            #if the edge contains the node, check if the path to that point is shorter
+            #this will the case taken early on to set up the older node weights
+            if edges[j,1] == i && weights[edges[j,2]] + edges[j,3] < weights[edges[j,1]]
+                weights[edges[j,1]] = weights[edges[j,2]] + edges[j,3]
+                prev[i] = edges[j,2]
+            #this will the case taken later, to update with the newer node information
+            elseif edges[j,2] == i && weights[edges[j,1]] + edges[j,3] < weights[edges[j,2]]
+                weights[edges[j,2]] = weights[edges[j,1]] + edges[j,3]
+                prev[i] = edges[j,1]
+            end
+        end
+        #else
+    end
+    prev_i = prev[size(nodes,1)]
+    while prev_i != 1
+        nodeorder = (prev_i, nodeorder)
+        prev_i = prev[prev_i]
+    end
+    return nodeorder
+    #=
     # create an n by n matrix
-    paths = zeros{Float64,size(nodes,1),size(nodes,1)}
+    paths = zeros(Float64,size(nodes,1),size(nodes,1))
     # iterate through one edge of the matrix
     for i = 1:size(nodes,1)
         # iterate only a triangle of the matrix
@@ -93,6 +123,7 @@ function findpath(nodes, edges)
     while (index != 1)
         
     end
+    =#
 end
 
 # Prob. Road Map
@@ -118,9 +149,11 @@ function PRM(s,g,O)
             numNodes += 1
             for i = 1:size(nodes,3)
                 # if this is within an acceptable radius, then add the node
-                if dist(newPoint,nodes[:,i]) < radCluster
+                d_nodes = dist(newPoint,nodes[:,i])
+                if d_nodes < radCluster
                     if checkEdge(newPoint,nodes[:,i],O)
-                        edges = [edges; numNodes i dist(newPoint,nodes[:,i])]
+                        # newpoint oldpoint length
+                        edges = [edges; numNodes i d_nodes]
                         if i == 1
                             path = findpath(nodes, edges)
                         end
