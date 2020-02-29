@@ -18,17 +18,18 @@ end
 
 function checkFrame(f,O)
     if f[3] < 1
-    for i = 1:size(O,1) 
-        # Check if cylinder or sphere
-        if O[i,5] == 1
-            # Check if it is outside of cylinder space (Over estimate the cylinder)
-            if (f[3] < O[i,3] + 1 && O[i,4] + 1 < norm2(f,O[i]))
-                return false
-            end
-        else
+        for i = 1:size(O,1) 
+            # Check if cylinder or sphere
+            if O[i,5] == 1
+                # Check if it is outside of cylinder space (Over estimate the cylinder)
+                if (f[3] < O[i,3] + 1 && O[i,4] + 1 < norm2(f,O[i]))
+                    return false
+                end
+            else
             # Check if it is outside sphere space
-            if O[i,4] + 1 < dist(f,O[i]) 
-                return false
+                if O[i,4] + 1 < dist(f,O[i]) 
+                    return false
+                end
             end
         end
     end
@@ -175,7 +176,7 @@ end
 function pathcost(f)
     sum = 0.0 #needs to be a float at least
     for i = 1:size(f,1)
-        sum += dist(f[i].f[i+1])
+        sum += dist(f[i],f[i+1])
     end
     return sum
 end
