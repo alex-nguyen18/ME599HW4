@@ -3,7 +3,7 @@ module DAPS
 # I am thinking that this may be a good implementation to aim for
 # https://www.cs.princeton.edu/courses/archive/fall11/cos495/COS495-Lab8-MotionPlanning.pdf
 
-import StaticArrays
+using StaticArrays
 #I just took the first letter of each of our names
 const maxN = 1000
 const radCluster = 9
@@ -22,12 +22,12 @@ function checkFrame(f,O)
             # Check if cylinder or sphere
             if O[i,5] == 1
                 # Check if it is outside of cylinder space (Over estimate the cylinder)
-                if (f[3] < O[i,3] + 1 && O[i,4] + 1 < norm2(f,O[i]))
+                if (f[3] < O[i,3] + 1 && O[i,4] + 1 < norm2(f,O[i,:]))
                     return false
                 end
             else
             # Check if it is outside sphere space
-                if O[i,4] + 1 < dist(f,O[i]) 
+                if O[i,4] + 1 < dist(f,O[i,:]) 
                     return false
                 end
             end
@@ -67,7 +67,7 @@ end
 function checkEdge(f1,f2,O)
     v = f2-f1
     for i = 1:10
-        p = f1 + (i/10)(v)
+        p = f1 + (i/10)*(v)
         if !checkFrame(p,O)
             return false
         end
@@ -81,9 +81,9 @@ function findpath(nodes, edges)
     #index = 2
     #not sure if we need this line below
     #check = BitArray(undef,size(nodes,1))
-    nodeorder=(size(nodes,1))
-    prev = ones(Int,size(nodes,1))
-    weights = fill(Inf,size(nodes,1))
+    nodeorder=(size(nodes,2),)
+    prev = ones(Int,size(nodes,2))
+    weights = fill(Inf,size(nodes,2))
     weights[1] = 0
     #iterate through all nodes
     for i = 1:size(nodes,1)
@@ -91,20 +91,20 @@ function findpath(nodes, edges)
         for j = 1:size(edges,1)
             #if the edge contains the node, check if the path to that point is shorter
             #this will the case taken early on to set up the older node weights
-            if edges[j,1] == i && weights[edges[j,2]] + edges[j,3] < weights[edges[j,1]]
-                weights[edges[j,1]] = weights[edges[j,2]] + edges[j,3]
-                prev[i] = edges[j,2]
+            if edges[j][1] == i && weights[edges[j][2]] + edges[j][3] < weights[edges[j][1]]
+                weights[edges[j][1]] = weights[edges[j][2]] + edges[j][3]
+                prev[i] = edges[j][2]
             #this will the case taken later, to update with the newer node information
-            elseif edges[j,2] == i && weights[edges[j,1]] + edges[j,3] < weights[edges[j,2]]
-                weights[edges[j,2]] = weights[edges[j,1]] + edges[j,3]
-                prev[i] = edges[j,1]
+            elseif edges[j][2] == i && weights[edges[j][1]] + edges[j][3] < weights[edges[j][2]]
+                weights[edges[j][2]] = weights[edges[j][1]] + edges[j][3]
+                prev[i] = edges[j][1]
             end
         end
         #else
     end
     prev_i = prev[size(nodes,1)]
     while prev_i != 1
-        nodeorder = (prev_i, nodeorder)
+        nodeorder = (nodeorder..., prev_i)
         prev_i = prev[prev_i]
     end
     return nodeorder
@@ -138,32 +138,41 @@ function PRM(s,g,O)
     nodes = cat(goal_point, start_point; dims=2) # stack horizontally because they are naturally vertical
     numNodes = 2
     # row of edges is [index1 index2 distanceBetweeni1i2]
-    edges = []
+    edges = ((1,1,0.0),)
     while (numNodes < maxN)
         # don't allow the finish to grow a node
         index = rand(collect(2:numNodes))
         # add a new frame
         newPoint = addPoint(nodes[:,index])
+        #print(newPoint)
         # check if new point is in
         if checkFrame(newPoint,O)
             # add node position if it passes
-            nodes = cat(nodes,newPoint; dims=3)
+            nodes = cat(nodes,newPoint; dims=2)
             numNodes += 1
-            for i = 1:size(nodes,3)
+            for i = 1:size(nodes,2)
                 # if this is within an acceptable radius, then add the node
                 d_nodes = dist(newPoint,nodes[:,i])
                 if d_nodes < radCluster
                     if checkEdge(newPoint,nodes[:,i],O)
                         # newpoint oldpoint length
-                        edges = [edges; numNodes i d_nodes]
+                        edges = (edges..., (numNodes,i,d_nodes,))
                         if i == 1
+                            #println("found!")
+                            #print(nodes)
                             path = findpath(nodes, edges)
+                            order = (nodes[1,:],)
+                            for p = 2:size(path,1)
+                                order = (nodes[p,:],order...)
+                            end
+                            return order
                         end
                     end
                 end
             end
         end
     end
+    return undef
 end
 
 # Randomly-exploring Random Tree
