@@ -11,7 +11,6 @@ end
 
 # Randomly-exploring Random Tree
 function RRT(s,g,O)
-   
     const Vec4f = SVector{4, Float64}
 
     # read the starting point from the input
@@ -27,44 +26,76 @@ function RRT(s,g,O)
     # add the floor as an obstacle, infinite radius circle at origin
     floor_obstacle = [0 0 0 Base.Inf 0]
     # adding the floor to the obstacle matrix
-    Obstacles = [O;floor_obstacle]
+    O = [O;floor_obstacle]
+
+    # Read the total number of obstacles from the input + floor
+    O_number_rows = size(O)[1]
+    
+    # code from PRM, unsure how it is supposed to differ from RRT
+    #
+    # while (numNodes < maxN)
+    #    index = rand(collect(2:numNodes))
+    #    newPoint = addPoint(nodes[:,index])
+    #
+    #    if checkFrame(newPoint, O)
+    #        nodes = cat(nodes,newPoint; dims = 2)
+    #        numNodes += 1
+    #        for i = 1:size(nodes,2)
+    #            d_nodes = dist(newPoint,nodes[:,i])
+    #           if d_nodes < radCluster
+    #               if checkEdge(newPoint,nodes[:,i],O)
+    #                    edges = (edges..., (numNodes,i,d_nodes))
+    #                    if i == 1
+    #                        path = findpath(nodes, edges)
+    #                        order = (nodes[1,:],)
+    #                       for p = 2:size(path,1)
+    #                        order = (nodes[p,:],order...)
+    #                        end
+    #                        return order
+    #                    end
+    #                end
+    #            end
+    #        end
+    #    end
+    # end
+    # return undef
 
     for i = 1:1:maxN
-        q_rand = [floor(rand(1)*g[1,1]); floor*rand(1)*g[1,2]; floor(rand(1)*g[1,3]];
+        q_rand = [floor(rand(1)*g[1,1]); floor*rand(1)*g[1,2]; floor(rand(1)*g[1,3]]
         # pick the closest node from existing list to branch out from
         ndist = []
         for j = 1:1:length(nodes)
             n = nodes(j)
-            tmp = dist(n.coordinates, q_rand)
+            tmp = dist(n.coord, q_rand)
             ndist = [ndist tmp]
         end 
 
         [val, idx] = min(ndist)
         q_near = nodes(idx)
 
-        q_new_coordinates = steer(q_rand, q_near_coordinates, val, EPS);
-        if noCollision(q_rand, q_new_coordinates, Obstacles)
-            q_new_cost = dist(q_new_coordinates, q_near.coordinates) + q_near.cost;
+        q_new.coord = steer(q_rand, q_near.coord, val, EPS);
+        if checkEdge(q_rand, q_new.coord, O)
+            q_new_cost = dist(q_new.coord, q_near.coord) + q_near.cost;
 
             # Within radius, find all existing nodes
             q_nearest = []
             r = 60;
             neighbor_count = 1;
             for j = 1:1:length(nodes)
-                if noCollision(nodes(j.coordinates), q_new_coordinates, O) && dist(nodes(j).coord, q_new.coord) <= r
-                    q_nearest(neighbor_count).coordinates = nodes(j).coordinates;
+                if checkEdge(nodes(j.coord), q_new.coord, O) && dist(nodes(j).coord, q_new.coord) <= r
+                    q_nearest(neighbor_count).coord = nodes(j).coord;
                     q_nearest(neighbor_count).cost = nodes(j).cost;
                     neighbor_count = neighbor_count + 1;
                 end
             end
 
-             # initialize cost to currently known value
-             q_min = q_near;
-             C_min = q_new_cost;
+            # initialize cost to currently known value
+            q_min = q_near;
+            C_min = q_new_cost;
 
-              # iterate through all nearest neighbors to find alternate lowest cost paths
+            # iterate through all nearest neighbors to find alternate lowest cost paths
             for k = 1:1:length(q_nearest)
-                if noCollision(q_nearest(k).coord, q_new.coord, O) && q_nearest(k).cost + dist(q_nearest(k).coord, q_new.coord) < C_min
+                if checkEdge(q_nearest(k).coord, q_new.coord, O) && q_nearest(k).cost + dist(q_nearest(k).coord, q_new.coord) < C_min
                     q_min = q_nearest(k);
                     C_min = q_nearest(k).cost + dist(q_nearest(k).coord, q_new.coord);            
                 end
@@ -72,18 +103,19 @@ function RRT(s,g,O)
 
             # update parent to least cost-from node
             for j = 1:1:length(nodes)
-                if nodes(j).coordinates == q_min.coordinates
+                if nodes(j).coord == q_min.coord
                     q_new.parent = j;
                 end
             end
 
             # append to nodes
-            nodes = [nodes; q_new_coordinates]
-        end 
+            nodes = [nodes q_new];
+        end
     end
+
     D = []
     for j = 1:1:length(nodes)
-        tmpdist = dist(nodes(j).coordinates, goal_point.coordinates);
+        tmpdist = dist(nodes(j).coord, goal_point.coord);
         D = [D tmpdist];
     end
 
@@ -96,7 +128,7 @@ function RRT(s,g,O)
     while q_end.parent != 0
         start = q_end.parent;
         q_end = nodes(start);
-                    end # end RRT
+end # end RRT
 
 #
 function addPoints()
