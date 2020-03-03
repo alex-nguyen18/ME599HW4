@@ -81,10 +81,6 @@ end
 
 # given a graph with edges, find the path from start to finish (Dijkstra)
 function findpath(nodes, edges)
-    #rder = [1,]
-    #index = 2
-    #not sure if we need this line below
-    #check = BitArray(undef,size(nodes,1))
     nodeorder=(1,)
     #to mark visited nodes
     checked = fill(false,size(nodes,2))
@@ -101,23 +97,20 @@ function findpath(nodes, edges)
         for i = 1:size(edges,1)
             if edges[i][1] == curr
                 if edges[i][3] + weights[curr] < weights[edges[i][2]]
-                    #println("we have a match!")
                     weights[edges[i][2]] = edges[i][3] + weights[curr]
                     prev[edges[i][2]] = curr
                 end
             elseif edges[i][2] == curr
                 if edges[i][3] + weights[curr] < weights[edges[i][1]]
-                    #println("we have a match!")
                     weights[edges[i][1]] = edges[i][3] + weights[curr]
                     prev[edges[i][1]] = curr
                 end
             end
         end
         checked[curr] = true
-        #find shortest weight to relax the next edge
+        #find shortest edge to select next node to visit
         for i = 1:size(checked,1)
             if !checked[i] && weights[i] < min
-                #println(i)
                 min = weights[i]
                 minI = i
             end
@@ -128,55 +121,41 @@ function findpath(nodes, edges)
             return undef
         end
     end
-    #=
-    #iterate through all nodes
-    for i = 1:size(nodes,2)
-        #it is assumed that the newer nodes are lower on the list
-        for j = 1:size(edges,1)
-            #if the edge contains the node, check if the path to that point is shorter
-            #this will the case taken early on to set up the older node weights
-            if edges[j][1] == i && weights[edges[j][2]] + edges[j][3] < weights[edges[j][1]]
-                weights[edges[j][1]] = weights[edges[j][2]] + edges[j][3]
-                prev[i] = edges[j][2]
-            #this will the case taken later, to update with the newer node information
-            elseif edges[j][2] == i && weights[edges[j][1]] + edges[j][3] < weights[edges[j][2]]
-                weights[edges[j][2]] = weights[edges[j][1]] + edges[j][3]
-                prev[i] = edges[j][1]
-            end
-        end
-        #else
-    end=#
-    print(prev)
-    #print(weights)
+    #after we have relaxed all nodes, get the order using the prev array
     prev_i = prev[1]
     while prev_i != 2
         nodeorder = (prev_i, nodeorder...,)
         prev_i = prev[prev_i]
     end
     nodeorder = (prev_i, nodeorder...,)
-    #print(nodeorder)
-    #println("")
-    #println("")
-    #println("")
     return nodeorder
-    #=
-    # create an n by n matrix
-    paths = zeros(Float64,size(nodes,1),size(nodes,1))
-    # iterate through one edge of the matrix
-    for i = 1:size(nodes,1)
-        # iterate only a triangle of the matrix
-        for j = 1:i
-            for k = 1:size(edges,1)
-                if edges[k,1] = i
-                    paths[i,edges[k,2]] = paths[edges[k,2],i] = edges[k,3]
-                end
-            end
+end
+
+# I think we could just do total distance here
+# Assume that frames include the target frame too
+function pathcost(f)
+    sum = 0.0 #needs to be a float at least
+    for i = 1:size(f,1)-1
+        sum += dist(f[i][1:3,4],f[i+1][1:3,4])
+    end
+    return sum
+end
+
+function nearestNode(N, P)
+	#### finds the nearest nodes to Qrand
+	#### input: 
+	#### Qrand: a random point, a 1x3 array 
+	#### N: a list of nodes, nx3 array
+    minD = Inf
+    minI = 0
+    for i = 2:size(N,2)
+		d = dist(N[:,i],P)
+        if d < minD
+            minD = d
+            minI = i
         end
-    end
-    while (index != 1)
-        
-    end
-    =#
+	end
+    return minI
 end
 
 # Prob. Road Map
@@ -195,17 +174,13 @@ function PRM(s,g,O)
     # row of edges is [index1 index2 distanceBetweeni1i2]
     connectstart = [false true]
     connectend = [true false]
-    edges = ((1,1,0.0),)
+    edges = ((2,2,0.0),)
     while (numNodes < maxN)
-        # don't allow the finish to grow a node
-        #index = rand(collect(2:numNodes))
         # add a new frame
         newPoint = addPoint(start_point,goal_point)
-        #print(newPoint)
         # check if new point is in
         if checkFrame(newPoint,O)
             # add node position if it passes
-            #print(newPoint)
             nodes = cat(nodes,newPoint; dims=2)
             numNodes += 1
             for i = 1:size(nodes,2)-1
@@ -216,6 +191,7 @@ function PRM(s,g,O)
                         # newpoint oldpoint length
                         edges = (edges..., (numNodes,i,d_nodes,))
                         #naive, but guarantees a connection
+                        #if we updated every node after every addition, this could find it "sooner" but may be costly
                         if connectstart[1,i] == true
                             connectstart = [connectstart true]
                         end
@@ -225,28 +201,36 @@ function PRM(s,g,O)
                     end
                 end
             end
+            #case where the logic didn't find a connection
             if size(connectstart,2) < numNodes
                 connectstart = [connectstart false]
             end
             if size(connectend,2) < numNodes
                 connectend = [connectend false]
             end
+            #once the two ends have met, then check for the path
             if connectend[1,numNodes] && connectstart[1,numNodes]
-                #println("found!")
-                #print(nodes)
                 path = findpath(nodes, edges)
-                #print(path)
-                #assume orientation of ending point is fine
+                #if the path returned undef, then we return undef and print error
+                if path == undef
+                    println("Could not find a path! Likely, max nodes reached!")
+                    return undef
+                end
+                #assume end point orientation for all points (since it's a sphere, it doesn't matter that much)
                 orient = g[1:3,1:3]
                 order = (s,)
                 for p = 2:size(path,1)
                     point = vcat(hcat(orient,nodes[:,path[p]]),[0 0 0 1])
                     order = (order...,point)
                 end
+                #add the frames into a tuple
                 order = (order...,g)
-                if order != undef
-                    return order
-                end
+                cost = pathcost(order)
+                #print total length of path
+                print("The cost (dist.) of this path is: ")
+                print(cost)
+                println("")
+                return order
             end
         end
     end
@@ -256,18 +240,70 @@ end
 
 # Randomly-exploring Random Tree
 function RRT(s,g,O)
-
-
-end
-
-# I think we could just do total distance here
-# Assume that frames include the target frame too
-function pathcost(f)
-    sum = 0.0 #needs to be a float at least
-    for i = 1:size(f,1)
-        sum += dist(f[i],f[i+1])
+    Vec3f = SVector{3, Float64}
+    # read the starting point from the input
+    start_point = Vec3f(s[1:3,4])
+    # read the goal from the input nodes[i1]
+    goal_point = Vec3f(g[1:3,4])
+    stopCond = dist(start_point,goal_point)
+    if !checkFrame(start_point,O) || !checkFrame(goal_point,O)
+        println("Poorly posed problem!")
+        return undef
     end
-    return sum
+    nodes = cat(goal_point, start_point; dims=2) # stack horizontally because they are naturally vertical
+    numNodes = 2
+    # row of edges is [index1 index2 distanceBetweeni1i2]
+    connectstart = [false true]
+    connectend = [true false]
+    edges = ((2,2,0.0),)
+    while (numNodes < maxN)
+        # add a new frame
+        newPoint = addPoint(start_point,goal_point)
+        # check if new point is in
+        #if checkFrame(newPoint,O)
+        step = 8
+        # find nearest node
+        nearest = nearestNode(nodes,newPoint)
+        #find a unit vector in the direction of new point
+        dirVec = (newPoint - nodes[:,nearest])
+        dirVec = dirVec/dist(dirVec,[0;0;0])
+        #add node; if fail, reduce step size until insignificant
+        while step > .25
+            steer = step*dirVec
+            #if both passes, add to tree and update the nearest node to the newest node but keep direction
+            #Also, stop the loop if it's gotten too far
+            if checkFrame(nodes[:,nearest]+steer,O) && checkEdge(nodes[:,nearest],nodes[:,nearest]+steer,O) && dist(nodes[:,nearest]+steer,goal_point) < stopCond
+                numNodes += 1
+                nodes = cat(nodes,nodes[:,nearest]+steer; dims=2)
+                edges = edges = (edges..., (numNodes,nearest,step,))
+                #if we have create a tree within the goal region, check for a path
+                if dist(goal_point,nodes[:,nearest]+steer) < radCluster && checkEdge(goal_point,nodes[:,nearest]+steer,O)
+                    edges = edges = (edges..., (numNodes,1,step,))
+                    path = findpath(nodes, edges)
+                    #assume end point orientation for all points (since it's a sphere, it doesn't matter that much)
+                    orient = g[1:3,1:3]
+                    order = (s,)
+                    for p = 2:size(path,1)
+                        point = vcat(hcat(orient,nodes[:,path[p]]),[0 0 0 1])
+                        order = (order...,point)
+                    end
+                    #add the frames into a tuple
+                    order = (order...,g)
+                    cost = pathcost(order)
+                    #print total length of path
+                    print("The cost (dist.) of this path is: ")
+                    print(cost)
+                    println("")
+                    return order
+                end
+                nearest = numNodes
+            else
+                step /= 2
+            end
+        end
+    end
+    println("Could not find a solution with given params!")
+    return undef
 end
 
 end # module
