@@ -8,28 +8,32 @@ using StaticArrays
 const maxN = 1000
 const radCluster = 9
 
+
 function dist(f,S)
     return ((f[1]-S[1])^2+(f[2]-S[2])^2+(f[3]-S[3])^2)^.5
 end
 
 function norm2(f,C)
-    return ((f[1]-C[1])^2+(f[2]-C[2])^2)
+    return ((f[1]-C[1])^2+(f[2]-C[2])^2)^.5
 end
 
 function checkFrame(f,O)
     if f[3] < 1
-        for i = 1:size(O,1) 
-            # Check if cylinder or sphere
-            if O[i,5] == 1
-                # Check if it is outside of cylinder space (Over estimate the cylinder)
-                if (f[3] < O[i,3] + 1 && O[i,4] + 1 < norm2(f,O[i,:]))
+        return false
+    end
+    for i = 1:size(O,1) 
+        # Check if cylinder or sphere
+        if O[i,5] == 1
+            # Check if it is outside of cylinder space (Over estimate the cylinder)
+            if (O[i,4] + 1 > norm2(f,O[i,:]))
+                if f[3] < O[i,3] + 1
                     return false
                 end
-            else
+            end
+        else
             # Check if it is outside sphere space
-                if O[i,4] + 1 < dist(f,O[i,:]) 
-                    return false
-                end
+            if O[i,4] + 1 > dist(f,O[i,:]) 
+                return false
             end
         end
     end
@@ -47,11 +51,11 @@ end
 # Add a new random point/configuration
 # Add a random point within a 10-edge length cube around the point of interest
 # .1 unit increments
-function addPoint(p)
-    dx = rand(LinRange(-5, 5, 110))
-    dy = rand(LinRange(-5, 5, 110))
-    dz = rand(LinRange(-5, 5, 110))
-    return [p[1]+dx;p[2]+dy;p[3]+dz]
+function addPoint(s,g)
+    x = rand(LinRange(s[1], g[1], 1000))
+    y = rand(LinRange(s[2], g[2], 1000))
+    z = rand(LinRange(s[3], g[3], 1000))
+    return [x;y;z]
     #r = rand(collect(1:radCluster))
     #trans = p + [0 0 0 0; 0 0 0 0; 0 0 0 r; 0 0 0 0]
     #rAng = rand(3)
@@ -81,12 +85,52 @@ function findpath(nodes, edges)
     #index = 2
     #not sure if we need this line below
     #check = BitArray(undef,size(nodes,1))
-    nodeorder=(size(nodes,2),)
-    prev = ones(Int,size(nodes,2))
+    nodeorder=(1,)
+    #to mark visited nodes
+    checked = fill(false,size(nodes,2))
+    #track which node was the shortest for the given node
+    prev = zeros(Int,size(nodes,2))
+    #hold the weights of each node
     weights = fill(Inf,size(nodes,2))
-    weights[1] = 0
+    weights[2] = 0
+    curr = 2
+    while curr!=1
+        minI = 0
+        min = Inf
+        #iterate through the nodes and relax the edges
+        for i = 1:size(edges,1)
+            if edges[i][1] == curr
+                if edges[i][3] + weights[curr] < weights[edges[i][2]]
+                    #println("we have a match!")
+                    weights[edges[i][2]] = edges[i][3] + weights[curr]
+                    prev[edges[i][2]] = curr
+                end
+            elseif edges[i][2] == curr
+                if edges[i][3] + weights[curr] < weights[edges[i][1]]
+                    #println("we have a match!")
+                    weights[edges[i][1]] = edges[i][3] + weights[curr]
+                    prev[edges[i][1]] = curr
+                end
+            end
+        end
+        checked[curr] = true
+        #find shortest weight to relax the next edge
+        for i = 1:size(checked,1)
+            if !checked[i] && weights[i] < min
+                #println(i)
+                min = weights[i]
+                minI = i
+            end
+        end
+        curr = minI
+        #condition where the rest of the nodes are not connected
+        if curr == 0
+            return undef
+        end
+    end
+    #=
     #iterate through all nodes
-    for i = 1:size(nodes,1)
+    for i = 1:size(nodes,2)
         #it is assumed that the newer nodes are lower on the list
         for j = 1:size(edges,1)
             #if the edge contains the node, check if the path to that point is shorter
@@ -101,12 +145,19 @@ function findpath(nodes, edges)
             end
         end
         #else
-    end
-    prev_i = prev[size(nodes,1)]
-    while prev_i != 1
-        nodeorder = (nodeorder..., prev_i)
+    end=#
+    print(prev)
+    #print(weights)
+    prev_i = prev[1]
+    while prev_i != 2
+        nodeorder = (prev_i, nodeorder...,)
         prev_i = prev[prev_i]
     end
+    nodeorder = (prev_i, nodeorder...,)
+    #print(nodeorder)
+    #println("")
+    #println("")
+    #println("")
     return nodeorder
     #=
     # create an n by n matrix
@@ -135,43 +186,71 @@ function PRM(s,g,O)
     start_point = Vec3f(s[1:3,4])
     # read the goal from the input nodes[i1]
     goal_point = Vec3f(g[1:3,4])
+    if !checkFrame(start_point,O) || !checkFrame(goal_point,O)
+        println("Poorly posed problem!")
+        return undef
+    end
     nodes = cat(goal_point, start_point; dims=2) # stack horizontally because they are naturally vertical
     numNodes = 2
     # row of edges is [index1 index2 distanceBetweeni1i2]
+    connectstart = [false true]
+    connectend = [true false]
     edges = ((1,1,0.0),)
     while (numNodes < maxN)
         # don't allow the finish to grow a node
-        index = rand(collect(2:numNodes))
+        #index = rand(collect(2:numNodes))
         # add a new frame
-        newPoint = addPoint(nodes[:,index])
+        newPoint = addPoint(start_point,goal_point)
         #print(newPoint)
         # check if new point is in
         if checkFrame(newPoint,O)
             # add node position if it passes
+            #print(newPoint)
             nodes = cat(nodes,newPoint; dims=2)
             numNodes += 1
-            for i = 1:size(nodes,2)
-                # if this is within an acceptable radius, then add the node
+            for i = 1:size(nodes,2)-1
+                # if this is within an acceptable radius, then add the edge
                 d_nodes = dist(newPoint,nodes[:,i])
                 if d_nodes < radCluster
                     if checkEdge(newPoint,nodes[:,i],O)
                         # newpoint oldpoint length
                         edges = (edges..., (numNodes,i,d_nodes,))
-                        if i == 1
-                            #println("found!")
-                            #print(nodes)
-                            path = findpath(nodes, edges)
-                            order = (nodes[1,:],)
-                            for p = 2:size(path,1)
-                                order = (nodes[p,:],order...)
-                            end
-                            return order
+                        #naive, but guarantees a connection
+                        if connectstart[1,i] == true
+                            connectstart = [connectstart true]
+                        end
+                        if connectend[1,i] == true
+                            connectend = [connectend true]
                         end
                     end
                 end
             end
+            if size(connectstart,2) < numNodes
+                connectstart = [connectstart false]
+            end
+            if size(connectend,2) < numNodes
+                connectend = [connectend false]
+            end
+            if connectend[1,numNodes] && connectstart[1,numNodes]
+                #println("found!")
+                #print(nodes)
+                path = findpath(nodes, edges)
+                #print(path)
+                #assume orientation of ending point is fine
+                orient = g[1:3,1:3]
+                order = (s,)
+                for p = 2:size(path,1)
+                    point = vcat(hcat(orient,nodes[:,path[p]]),[0 0 0 1])
+                    order = (order...,point)
+                end
+                order = (order...,g)
+                if order != undef
+                    return order
+                end
+            end
         end
     end
+    println("Could not find a solution with given params!")
     return undef
 end
 
